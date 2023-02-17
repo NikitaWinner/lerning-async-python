@@ -6,7 +6,7 @@ import unittest
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import RESPONSE, ERROR, USER, ACCOUNT_NAME, TIME, ACTION, PRESENCE
 from client import create_presence, process_ans
-
+from errors import ReqFieldMissingError
 
 class TestClass(unittest.TestCase):
     '''
@@ -30,7 +30,7 @@ class TestClass(unittest.TestCase):
 
     def test_no_response(self):
         """Тест исключения без поля RESPONSE"""
-        self.assertRaises(ValueError, process_ans, {ERROR: 'Bad Request'})
+        self.assertRaises(ReqFieldMissingError, process_ans, {ERROR: 'Bad Request'})
 
 
 if __name__ == '__main__':
