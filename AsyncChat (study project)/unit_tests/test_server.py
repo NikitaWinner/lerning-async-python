@@ -3,6 +3,7 @@
 import sys
 import os
 import unittest
+
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import RESPONSE, ERROR, USER, ACCOUNT_NAME, TIME, ACTION, PRESENCE
 from server import process_client_message
@@ -10,8 +11,9 @@ from server import process_client_message
 
 class TestServer(unittest.TestCase):
     '''
-    В сервере только 1 функция для тестирования
+    В модуле сервере только 1 функция для тестирования
     '''
+
     err_dict = {
         RESPONSE: 400,
         ERROR: 'Bad Request'

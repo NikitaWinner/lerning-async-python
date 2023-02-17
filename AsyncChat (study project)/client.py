@@ -7,23 +7,21 @@ import datetime
 import argparse
 import logging
 import logs.config_client_log
-from errors import ReqFieldMissingError
+from exceptions import ReqFieldMissingError
 from common.settings import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, \
     RESPONSE, DEFAULT_PORT, ERROR, DEFAULT_IP_ADDRESS
 from common.utils import get_message, send_message
-
+from decorators import Log
 
 # Инициализация клиентского логера
 CLIENT_LOGGER = logging.getLogger('client')
 TIME_IS_NOW = datetime.datetime.now().strftime("%d %B %Yг | %H:%M:%S | %A ")
 
 
-def create_presence(account_name='Guest'):
-    """
-    Функция генерирует запрос о присутствии клиента
-    :param account_name:
-    :return:
-    """
+@Log(CLIENT_LOGGER)
+def create_presence(account_name: str = 'Guest') -> dict:
+    """ Функция генерирует запрос о присутствии клиента """
+
     out = {
         ACTION: PRESENCE,
         TIME: TIME_IS_NOW,
@@ -35,12 +33,10 @@ def create_presence(account_name='Guest'):
     return out
 
 
+@Log(CLIENT_LOGGER)
 def process_ans(message):
-    """
-    Функция разбирает ответ сервера
-    :param message:
-    :return:
-    """
+    """ Функция разбирает ответ сервера """
+
     CLIENT_LOGGER.debug(f'Полученно сообщения от сервера: {message}')
     if RESPONSE in message:
         if message[RESPONSE] == 200:
@@ -50,11 +46,10 @@ def process_ans(message):
     raise ReqFieldMissingError(RESPONSE)
 
 
+@Log(CLIENT_LOGGER)
 def create_arg_parser():
-    """
-    Создаём парсер аргументов командной строки
-    :return:
-    """
+    """ Создаём парсер аргументов командной строки """
+
     parser = argparse.ArgumentParser()
     parser.add_argument('addr', default=DEFAULT_IP_ADDRESS, nargs='?')
     parser.add_argument('port', default=DEFAULT_PORT, type=int, nargs='?')
@@ -62,10 +57,8 @@ def create_arg_parser():
 
 
 def main():
-    """
-    Загружаем параметры командной строки
-    :return:
-    """
+    """ Загружаем параметры командной строки """
+
     parser = create_arg_parser()
     namespace = parser.parse_args(sys.argv[1:])
     server_address = namespace.addr
@@ -94,8 +87,7 @@ def main():
     except json.JSONDecodeError:
         CLIENT_LOGGER.error('Не удалось декодировать полученную Json строку.')
     except ReqFieldMissingError as missing_error:
-        CLIENT_LOGGER.error(f'В ответе сервера отсутствует необходимое поле '
-                            f'{missing_error.missing_field}')
+        CLIENT_LOGGER.error(f'В ответе сервера отсутствует необходимое поле {missing_error.missing_field}')
     except ConnectionRefusedError:
         CLIENT_LOGGER.critical(f'Не удалось подключиться к серверу {server_address}:{server_port}, '
                                f'конечный компьютер отверг запрос на подключение.')

@@ -6,21 +6,21 @@ import argparse
 import json
 import logging
 import logs.config_server_log
-from errors import IncorrectDataRecivedError
+from exceptions import IncorrectDataRecivedError
 from common.settings import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, \
     RESPONSE, DEFAULT_PORT, MAX_CONNECTIONS, ERROR
 from common.utils import get_message, send_message
+from decorators import Log
 
-#Инициализация логирования сервера.
+# Инициализация логирования сервера.
 SERVER_LOGGER = logging.getLogger('server')
 
-def process_client_message(message: dict):
-    """
-    Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента,
-    проверяет корректность, возвращает словарь-ответ для клиента
-    :param message:
-    :return:
-    """
+
+@Log(SERVER_LOGGER)
+def process_client_message(message: dict) -> dict:
+    """ Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента,
+    проверяет корректность, возвращает словарь-ответ для клиента. """
+
     SERVER_LOGGER.debug(f'Разбор сообщения от клиента: {message}')
     if ACTION in message and message[ACTION] == PRESENCE and TIME in message and \
             USER in message and message[USER][ACCOUNT_NAME] == 'Guest':
@@ -33,11 +33,10 @@ def process_client_message(message: dict):
     }
 
 
+@Log(SERVER_LOGGER)
 def create_arg_parser():
-    """
-    Парсер аргументов коммандной строки
-    :return:
-    """
+    """ Парсер аргументов коммандной строки """
+
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', default=DEFAULT_PORT, type=int, nargs='?')
     parser.add_argument('-a', default='', nargs='?')
@@ -45,10 +44,8 @@ def create_arg_parser():
 
 
 def main():
-    """
-    Загрузка параметров командной строки, если нет параметров, то задаём значения по умоланию
-    :return:
-    """
+    """ Загрузка параметров командной строки, если нет параметров, то задаём значения по умоланию """
+
     parser = create_arg_parser()
     namespace = parser.parse_args(sys.argv[1:])
     listen_address = namespace.a

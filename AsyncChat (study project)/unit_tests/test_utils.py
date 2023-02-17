@@ -7,13 +7,18 @@ import unittest
 import os
 import sys
 from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
+
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import *
 from common.utils import get_message, send_message
-from errors import NonDictInputError
+from exceptions import NonDictInputError
 
 
 class TestUtils(unittest.TestCase):
+    '''
+    Unit-тесты...
+    '''
+
     test_message = {
         'action': 'presence',
         'time': 1,

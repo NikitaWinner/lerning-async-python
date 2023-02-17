@@ -3,21 +3,23 @@
 import sys
 import os
 import unittest
+
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import RESPONSE, ERROR, USER, ACCOUNT_NAME, TIME, ACTION, PRESENCE
 from client import create_presence, process_ans
-from errors import ReqFieldMissingError
+from exceptions import ReqFieldMissingError
+
 
 class TestClass(unittest.TestCase):
     '''
-    Класс с тестами
+    Класс с unit-тестами
     '''
 
     def test_def_presense(self):
         """Тест коректного запроса"""
         test = create_presence()
         test[TIME] = 1.1  # время необходимо приравнять принудительно
-                          # иначе тест никогда не будет пройден
+        # иначе тест никогда не будет пройден
         self.assertEqual(test, {ACTION: PRESENCE, TIME: 1.1, USER: {ACCOUNT_NAME: 'Guest'}})
 
     def test_200_ans(self):
