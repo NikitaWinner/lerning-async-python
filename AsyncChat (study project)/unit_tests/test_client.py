@@ -7,7 +7,7 @@ import unittest
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import RESPONSE, ERROR, USER, ACCOUNT_NAME, TIME, ACTION, PRESENCE
 from client import create_presence, process_ans
-from exceptions import ReqFieldMissingError
+from exceptions import ReqFieldMissingError, ServerError
 
 
 class TestClass(unittest.TestCase):
@@ -28,7 +28,7 @@ class TestClass(unittest.TestCase):
 
     def test_400_ans(self):
         """Тест корректного разбора 400"""
-        self.assertEqual(process_ans({RESPONSE: 400, ERROR: 'Bad Request'}), '400 : Bad Request')
+        self.assertRaises(ServerError, process_ans, {RESPONSE: 400, ERROR: 'Bad Request'})
 
     def test_no_response(self):
         """Тест исключения без поля RESPONSE"""

@@ -20,3 +20,7 @@ message = b'hi'
 client_socket.send(message)
 answer = client.recv(1024)
 print(answer)
+
+server_socket.close()
+client_socket.close()
+client.close()

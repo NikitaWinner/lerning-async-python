@@ -5,13 +5,9 @@ from decorators import Log
 
 
 @Log()
-def get_message(client):
-    '''
-    Утилита приёма и декодирования сообщения
-    принимает байты выдаёт словарь, если приняточто-то другое отдаёт ошибку значения
-    :param client:
-    :return:
-    '''
+def get_message(client) -> dict:
+    """ Утилита приёма и декодирования сообщения. Принимает байты и
+    выдаёт словарь, если принято что-то другое отдаёт ошибку значения """
 
     encoded_response = client.recv(MAX_PACKAGE_LENGTH)
     if isinstance(encoded_response, bytes):
@@ -24,14 +20,10 @@ def get_message(client):
 
 
 @Log()
-def send_message(sock, message):
-    '''
-    Утилита кодирования и отправки сообщения
-    принимает словарь и отправляет его
-    :param sock:
-    :param message:
-    :return:
-    '''
+def send_message(sock, message: dict):
+    """ Утилита кодирования и отправки сообщения
+    принимает словарь и отправляет его """
+
     if not isinstance(message, dict):
         raise NonDictInputError
     json_message = json.dumps(message)

@@ -1,8 +1,0 @@
-2023-02-18 02:23:43,551 DEBUG decorators.py Функция create_arg_parser вызвана из функции main в модуле C:\Users\Xiaomi\Desktop\GeekBrains\Client-server GUI app\learning-async-python\AsyncChat (study project)\client.py с аргументами: (); {}
-2023-02-18 02:23:43,560 INFO client.py Запущен клиент с парамертами: адрес сервера: 127.0.0.1, порт: 7777
-2023-02-18 02:23:43,561 DEBUG decorators.py Функция create_presence вызвана из функции main в модуле C:\Users\Xiaomi\Desktop\GeekBrains\Client-server GUI app\learning-async-python\AsyncChat (study project)\client.py с аргументами: (); {}
-2023-02-18 02:23:43,561 DEBUG client.py Сформировано presence сообщение для пользователя Guest
-2023-02-18 02:23:43,562 DEBUG client.py Сообщение отправлено на сервер: 127.0.0.1, порт: 7777
-2023-02-18 02:23:43,562 DEBUG decorators.py Функция process_ans вызвана из функции main в модуле C:\Users\Xiaomi\Desktop\GeekBrains\Client-server GUI app\learning-async-python\AsyncChat (study project)\client.py с аргументами: ({'response': 200},); {}
-2023-02-18 02:23:43,562 DEBUG client.py Полученно сообщения от сервера: {'response': 200}
-2023-02-18 02:23:43,562 INFO client.py Принят ответ от сервера: 200 : OK
