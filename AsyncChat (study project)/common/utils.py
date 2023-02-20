@@ -1,11 +1,12 @@
 import json
+import socket
 from common.settings import MAX_PACKAGE_LENGTH, ENCODING
 from exceptions import NonDictInputError, IncorrectDataRecivedError
 from decorators import Log
 
 
 @Log()
-def get_message(client) -> dict:
+def get_message(client: socket.socket) -> dict:
     """ Утилита приёма и декодирования сообщения. Принимает байты и
     выдаёт словарь, если принято что-то другое отдаёт ошибку значения """
 
@@ -20,7 +21,7 @@ def get_message(client) -> dict:
 
 
 @Log()
-def send_message(sock, message: dict):
+def send_message(sock: socket.socket, message: dict) -> None:
     """ Утилита кодирования и отправки сообщения
     принимает словарь и отправляет его """
 

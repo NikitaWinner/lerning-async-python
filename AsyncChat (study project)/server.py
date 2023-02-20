@@ -20,15 +20,15 @@ SERVER_LOGGER = logging.getLogger('server')
 
 
 @Log(SERVER_LOGGER)
-def process_client_message(message: dict, messages_list: list,
-                           client, clients: list, registered_names: dict):
+def process_client_message(message: dict, messages_list: list, client: socket.socket,
+                           clients: list, registered_names: dict):
     """ Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента,
     проверяет корректность, отправляет клиенту словарь-ответ, если необходимо.
     :param message: Сообщение в виде словаря принятое от клиента по протоколу JIM.
     :param messages_list: Список для хранения очереди сообщений.
     :param client: Файловый дескриптор, готовый к вводу (готовый принять сообщение от сервера).
     :param clients: Список клиентских сокетов, с кем установленно соединение.
-    :param names: Словарь, для имен пользователей в качесве ключа и их сокетов в качестве значения.
+    :param registered_names: Словарь, для имен пользователей в качесве ключа и их сокетов в качестве значения.
     """
     SERVER_LOGGER.debug(f'Разбор сообщения от клиента : {message}')
     # Принимаем и отвечаем на собщение о присутствии.
@@ -125,7 +125,7 @@ def main():
     transport.settimeout(0.5)
     transport.listen(MAX_CONNECTIONS)
 
-    clients = []  # Для клиентских клиентских сокетов.
+    clients = []  # Для клиентских сокетов.
     message_queue = []  # Для очереди сообщений.
     registered_names = {}  # Словарь, для имён пользователей и соответствующих им сокетов.
 

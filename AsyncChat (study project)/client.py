@@ -21,7 +21,7 @@ CLIENT_LOGGER = logging.getLogger('client')
 
 
 @Log(CLIENT_LOGGER)
-def create_message(sock, account_name: str = 'Guest') -> None:
+def create_message(sock: socket.socket, account_name: str = 'Guest') -> None:
     """ Функция запрашивает текст сообщения и имя получателя для отправки.
     Так же завершает работу при вводе подобной комманды.
     :param sock: Клиентский сокет.
@@ -84,7 +84,7 @@ def create_presence(account_name: str = 'Guest') -> dict:
     return presence_message
 
 
-def message_from_server(sock, my_username: str) -> None:
+def message_from_server(sock: socket.socket, my_username: str) -> None:
     """ Функция - обработчик сообщений других
     пользователей, поступающих с сервера.
     :param sock: Серверный сокет.
@@ -120,7 +120,7 @@ def print_help() -> None:
 
 
 @Log(CLIENT_LOGGER)
-def user_interactive(sock, username: str):
+def user_interactive(sock: socket.socket, username: str):
     """Функция взаимодействия с пользователем,
     запрашивает команды, отправляет сообщения.
     :param sock: Клиентский сокет.
