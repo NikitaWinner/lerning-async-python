@@ -9,66 +9,135 @@ import argparse
 import threading
 from decorators import Log
 from datetime import datetime
-import logs.config_client_log
+from metaclasses import ClientMaker
 from common.utils import get_message, send_message
+from logs.config_client_log import create_client_logger
 from exceptions import ReqFieldMissingError, ServerError, \
     IncorrectDataRecivedError, NonDictInputError
 from common.settings import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, RESPONSE, \
     DEFAULT_PORT, ERROR, DEFAULT_IP_ADDRESS, MESSAGE_TEXT, MESSAGE, SENDER, DESTINATION, EXIT
 
 # Инициализация клиентского логгера.
-CLIENT_LOGGER = logging.getLogger('client')
+CLIENT_LOGGER = create_client_logger()
 
 
-@Log(CLIENT_LOGGER)
-def create_message(sock: socket.socket, account_name: str = 'Guest') -> None:
-    """ Функция запрашивает текст сообщения и имя получателя для отправки.
-    Так же завершает работу при вводе подобной комманды.
-    :param sock: Клиентский сокет.
-    :param account_name: Имя отправителя сообщения (от кого).
-    """
-    to_user = input('Введите получателя сообщения: ')
-    message = input('Введите сообщение для отправки: ')
-    time_now = datetime.now().strftime("%d %B %Yг | %H:%M:%S | %A ")  # текущее время
-    message_dict = {
-        ACTION: MESSAGE,
-        SENDER: account_name,
-        DESTINATION: to_user,
-        TIME: time_now,
-        MESSAGE_TEXT: message
-    }
-    CLIENT_LOGGER.debug(f'Сформирован словарь сообщения: {message_dict}')
-    try:
-        send_message(sock, message_dict)
-        CLIENT_LOGGER.info(f'Отправлено сообщение для пользователя {to_user}')
-    except (ConnectionResetError, ConnectionError, ConnectionAbortedError):
-        CLIENT_LOGGER.error(f'Соединение с сервером было потеряно.')
-        sys.exit(1)
-    except NonDictInputError:
-        CLIENT_LOGGER.error(f'От клиента {sock.getpeername()} '
-                            f'приняты некорректные данные. Соединение закрывается.')
+class ClientSender(threading.Thread, metaclass=ClientMaker): # metaclass=ClientMaker
+    # """ Класс формировки и отправки сообщений
+    # на сервер и взаимодействия с пользователем. """
+    def __init__(self, account_name, sock):
+        self.account_name = account_name
+        self.sock = sock
+        super().__init__()
+
+    def create_exit_message(self) -> dict:
+        """ Метод формирует сообщение о выходе
+        клиента и возвращает его в виде словаря.
+        :return Сформированное сообщение о выходе по протоколу JIM.
+        """
+        time_now = datetime.now().strftime("%d %B %Yг | %H:%M:%S | %A ")
+        exit_message = {
+            ACTION: EXIT,
+            TIME: time_now,
+            ACCOUNT_NAME: self.account_name
+        }
+        return exit_message
+
+    def create_message(self) -> None:
+        """ Метод запрашивает текст сообщения и имя получателя для отправки.
+        Так же завершает работу при вводе подобной комманды.
+        """
+        to_user = input('Введите получателя сообщения: ')
+        message = input('Введите сообщение для отправки: ')
+        time_now = datetime.now().strftime("%d %B %Yг | %H:%M:%S | %A ")  # текущее время
+        message_dict = {
+            ACTION: MESSAGE,
+            SENDER: self.account_name,
+            DESTINATION: to_user,
+            TIME: time_now,
+            MESSAGE_TEXT: message
+        }
+        CLIENT_LOGGER.debug(f'Сформирован словарь сообщения: {message_dict}')
+        try:
+            send_message(self.sock, message_dict)
+            CLIENT_LOGGER.info(f'Отправлено сообщение для пользователя {to_user}')
+        except (ConnectionResetError, ConnectionError, ConnectionAbortedError):
+            CLIENT_LOGGER.error(f'Соединение с сервером было потеряно.')
+            sys.exit(1)
+        except NonDictInputError:
+            CLIENT_LOGGER.error(f'От клиента {self.sock.getpeername()} '
+                                f'приняты некорректные данные. Соединение закрывается.')
+
+    def run(self):
+        """Метод для взаимодействия с пользователем,
+        запрашивает команды, отправляет сообщения.
+        """
+        self.print_help()
+        while True:
+            command = input('Введите команду: ').lower()
+            if command == 'message':
+                self.create_message()
+            elif command == 'help':
+                self.print_help()
+            elif command == 'exit':
+                try:
+                    exit_message = self.create_exit_message()  # Формирую сообщение о выходе.
+                    send_message(self.sock, exit_message)  # Отправляю о выходе
+                except NonDictInputError:
+                    CLIENT_LOGGER.error(f'От клиента {self.sock.getpeername()} '
+                                        f'приняты некорректные данные. Соединение закрывается.')
+                print('Завершение соединения.')
+                CLIENT_LOGGER.info('Завершение работы по команде пользователя.')
+                time.sleep(0.5)  # Задержка, чтобы успело уйти сообщение о выходе
+                break
+            else:
+                print('Команда не распознана, попробойте снова. help - вывести поддерживаемые команды.')
+
+    def print_help(self) -> None:
+        """ Функция выводящяя справку по использованию клиентской части """
+
+        print('Поддерживаемые команды:')
+        print('message - отправить сообщение.')
+        print('help - вывести подсказки по командам')
+        print('exit - выход из программы')
 
 
-@Log(CLIENT_LOGGER)
-def create_exit_message(account_name: str) -> dict:
-    """ Функция формирует сообщение о выходе
-    клиента и возвращает его в виде словаря.
-    :param account_name: Имя отправителя.
-    :return Сформированное сообщение о выходе по протоколу JIM.
-    """
-    time_now = datetime.now().strftime("%d %B %Yг | %H:%M:%S | %A ")
-    exit_message = {
-        ACTION: EXIT,
-        TIME: time_now,
-        ACCOUNT_NAME: account_name
-    }
-    return exit_message
+class ClientReader(threading.Thread, metaclass=ClientMaker):
+    # """ Класс-приёмник сообщений с сервера.
+    # Принимает сообщения, выводит в консоль."""
+    def __init__(self, account_name, sock):
+        self.account_name = account_name
+        self.sock = sock
+        super().__init__()
+
+    def run(self) -> None:
+        """ Метод - обработчик сообщений других
+        пользователей, поступающих с сервера.
+        Принимает сообщения, выводит в консоль.
+        Завершается при потере соединения.
+        """
+        while True:  # Основной цикл приёмника сообщений.
+            try:
+                message = get_message(self.sock)
+                if ACTION in message and message[ACTION] == MESSAGE \
+                        and SENDER in message and DESTINATION in message \
+                        and MESSAGE_TEXT in message and message[DESTINATION] == self.account_name:
+                    print(f'\nCообщение от {message[SENDER]}: "{message[MESSAGE_TEXT]}"')
+                    CLIENT_LOGGER.info(f'Получено сообщение от пользователя {message[SENDER]}:'
+                                       f'\n{message[MESSAGE_TEXT]}')
+                else:
+                    CLIENT_LOGGER.error(f'Получено некорректное сообщение с сервера: {message}')
+            except IncorrectDataRecivedError:
+                CLIENT_LOGGER.error(f'Не удалось декодировать полученное сообщение.')
+            except (OSError, ConnectionError, ConnectionAbortedError,
+                    ConnectionResetError, json.JSONDecodeError):
+                CLIENT_LOGGER.critical(f'Потеряно соединение с сервером.')
+                break
 
 
 @Log(CLIENT_LOGGER)
 def create_presence(account_name: str = 'Guest') -> dict:
     """ Функция формирует запрос о присутствии
-    клиента и возвращает его в виде словаря.
+    клиента и возвращает его в виде словаря по протоколу JIM.
     :param account_name: Имя отправителя.
     :return Сформированное сообщение о присутствии по протоколу JIM.
     """
@@ -82,66 +151,6 @@ def create_presence(account_name: str = 'Guest') -> dict:
     }
     CLIENT_LOGGER.debug(f'Сформировано {PRESENCE} сообщение для пользователя {account_name}')
     return presence_message
-
-
-def message_from_server(sock: socket.socket, my_username: str) -> None:
-    """ Функция - обработчик сообщений других
-    пользователей, поступающих с сервера.
-    :param sock: Серверный сокет.
-    :param my_username: Адресат.
-    """
-    while True:
-        try:
-            message = get_message(sock)
-            if ACTION in message and message[ACTION] == MESSAGE \
-                    and SENDER in message and DESTINATION in message \
-                    and MESSAGE_TEXT in message and message[DESTINATION] == my_username:
-                print(f'\nCообщение от {message[SENDER]}: "{message[MESSAGE_TEXT]}"')
-                CLIENT_LOGGER.info(f'Получено сообщение от пользователя {message[SENDER]}:'
-                                   f'\n{message[MESSAGE_TEXT]}')
-            else:
-                CLIENT_LOGGER.error(f'Получено некорректное сообщение с сервера: {message}')
-        except IncorrectDataRecivedError:
-            CLIENT_LOGGER.error(f'Не удалось декодировать полученное сообщение.')
-        except (OSError, ConnectionError, ConnectionAbortedError,
-                ConnectionResetError, json.JSONDecodeError):
-            CLIENT_LOGGER.critical(f'Потеряно соединение с сервером.')
-            break
-
-
-@Log(CLIENT_LOGGER)
-def print_help() -> None:
-    """ Функция выводящяя справку по использованию клиентской части """
-
-    print('Поддерживаемые команды:')
-    print('message - отправить сообщение.')
-    print('help - вывести подсказки по командам')
-    print('exit - выход из программы')
-
-
-@Log(CLIENT_LOGGER)
-def user_interactive(sock: socket.socket, username: str):
-    """Функция взаимодействия с пользователем,
-    запрашивает команды, отправляет сообщения.
-    :param sock: Клиентский сокет.
-    :param username: Имя отправителя сообщения (от кого).
-    """
-    print_help()
-    while True:
-        command = input('Введите команду: ').lower()
-        if command == 'message':
-            create_message(sock, username)
-        elif command == 'help':
-            print_help()
-        elif command == 'exit':
-            exit_message = create_exit_message(username)  # формируем сообщение о выходе
-            send_message(sock, exit_message)
-            print('Завершение соединения.')
-            CLIENT_LOGGER.info('Завершение работы по команде пользователя.')
-            time.sleep(0.5)  # Задержка, чтобы успело уйти сообщение о выходе
-            break
-        else:
-            print('Команда не распознана, попробойте снова. help - вывести поддерживаемые команды.')
 
 
 @Log(CLIENT_LOGGER)
@@ -187,11 +196,13 @@ def get_arg_commandline() -> tuple:
 def main():
     # Загружаем параметры командной строки и сообщаем о запуске в консоль.
     server_address, server_port, client_name = get_arg_commandline()
-    print(f'Консольный месседжер. Клиентский модуль. Имя пользователя: {client_name}')
+    print(f'Консольный месседжер. Клиентский модуль.')
 
     # На случай, если имя пользователя не было задано, изначально.
     if not client_name:
         client_name = input('Введите имя пользователя: ')
+    else:
+        print(f'Клиентский модуль запущен с именем: {client_name}')
 
     CLIENT_LOGGER.info(f'Запущен клиент с параметрами: адрес сервера: {server_address}, '
                        f'порт: {server_port}, имя пользователя: {client_name}')
@@ -222,20 +233,20 @@ def main():
         sys.exit(1)
     else:
         # Запуск клиентского процесса приёма сообщений.
-        receiver = threading.Thread(target=message_from_server, args=(transport, client_name))
-        receiver.daemon = True
-        receiver.start()
+        module_reciver = ClientReader(client_name, transport)
+        module_reciver.daemon = True
+        module_reciver.start()
 
         # Запуск отправки сообщений и взаимодействия с пользователем.
-        user_interface = threading.Thread(target=user_interactive, args=(transport, client_name))
-        user_interface.daemon = True
-        user_interface.start()
+        module_sender = ClientSender(client_name, transport)
+        module_sender.daemon = True
+        module_sender.start()
         CLIENT_LOGGER.debug('Запущены потоки/процессы.')
 
         # Завершаем все потоки.
         while True:
             time.sleep(1)
-            if receiver.is_alive() and user_interface.is_alive():
+            if module_reciver.is_alive() and module_sender.is_alive():
                 continue
             break
 
