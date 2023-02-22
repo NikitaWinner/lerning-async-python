@@ -20,6 +20,10 @@ ENCODING = 'utf-8'
 # Текущий уровень логирования
 LOGGING_LEVEL = logging.DEBUG
 
+# База данных для хранения данных сервера:
+SERVER_DATABASE = 'sqlite:///server_base.db3'
+
+
 # Протокол JIM основные ключи:
 ACTION = 'action'
 TIME = 'time'
@@ -37,9 +41,7 @@ MESSAGE_TEXT = 'mess_text'
 EXIT = 'exit'
 
 # Словари - ответы:
-# 200
 RESPONSE_200 = {RESPONSE: 200}
-# 400
 RESPONSE_400 = {
     RESPONSE: 400,
     ERROR: None

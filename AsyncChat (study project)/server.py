@@ -8,24 +8,26 @@ import logging
 import argparse
 from decorators import Log
 from descriptors import Port
-from logs.config_server_log import create_server_logger
+from database import ServerStorage
 from metaclasses import ServerMaker
 from common.utils import get_message, send_message
+from logs.config_server_log import create_server_logger
 from exceptions import IncorrectDataRecivedError, NonDictInputError
 from common.settings import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, \
     SENDER, DEFAULT_PORT, MAX_CONNECTIONS, ERROR, MESSAGE_TEXT, MESSAGE, \
     RESPONSE_200, RESPONSE_400, DESTINATION, EXIT
 
-# Инициализация логирования сервера.
+# Инициализация логгера для сервера.
 SERVER_LOGGER = create_server_logger()
 
 
 class Server(metaclass=ServerMaker): # metaclass=ServerMaker
     port = Port()
     """ Основной класс сервера """
-    def __init__(self, listen_address, listen_port):
+    def __init__(self, listen_address, listen_port, database):
         self.addr = listen_address  # IP-адрес.
         self.port = listen_port  # Порты для прослушивания.
+        self.database = database  # База данных сервера.
         self.clients = []  # Для подключенных клиентских сокетов.
         self.message_queue = []  # Для очереди сообщений.
         self.registered_names = dict()  # Словарь, для имён пользователей и соответствующих им сокетов.
@@ -137,11 +139,15 @@ class Server(metaclass=ServerMaker): # metaclass=ServerMaker
             # регистрирую, иначе отправляю ответ 400 и завершаю соединение.
             if message[USER][ACCOUNT_NAME] not in self.registered_names.keys():
                 self.registered_names[message[USER][ACCOUNT_NAME]] = client  # {'client_name': client_socket}
+                ip_address, port = client.getpeername()
+                self.database.user_login(message[USER][ACCOUNT_NAME], ip_address, port)
                 send_message(client, RESPONSE_200)
+                SERVER_LOGGER.debug(f'Ответ отправлен клиенту : {RESPONSE_200}')
             else:
                 response = RESPONSE_400
                 response[ERROR] = 'Имя пользователя уже занято.'
                 send_message(client, response)
+                SERVER_LOGGER.debug(f'Ответ отправлен клиенту : {response}')
                 self.clients.remove(client)
                 client.close()
         # Добавляю сообщение в очередь сообщений.
@@ -156,14 +162,17 @@ class Server(metaclass=ServerMaker): # metaclass=ServerMaker
         elif ACTION in message \
                 and message[ACTION] == EXIT \
                 and ACCOUNT_NAME in message:
+            self.database.user_logout(message[ACCOUNT_NAME])
             self.clients.remove(self.registered_names[message[ACCOUNT_NAME]])
             self.registered_names[message[ACCOUNT_NAME]].close()
+            # Удаляем из доступных пользователей
             del self.registered_names[message[ACCOUNT_NAME]]
         # Иначе отдаём Bad request (Запрос некорректен).
         else:
             response = RESPONSE_400
             response[ERROR] = 'Запрос некорректен.'
             send_message(client, response)
+            SERVER_LOGGER.error(f'Ответ отправлен клиенту : {response}')
 
 
 @Log(SERVER_LOGGER)
@@ -185,9 +194,9 @@ def main():
     # Загрузка параметров командной строки,
     # если нет параметров, то задаются значения по умоланию.
     listen_address, listen_port = get_arg_commandline()
-
+    database = ServerStorage()
     # Создание экземпляра класса - сервера.
-    server = Server(listen_address, listen_port)
+    server = Server(listen_address, listen_port, database)
     server.main_loop()
 
 
