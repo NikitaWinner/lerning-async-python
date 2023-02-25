@@ -30,10 +30,12 @@ class ServerMaker(type):
             raise TypeError('Некорректная инициализация сокета.')
         super().__init__(clsname, bases, clsdict)
 
+
 class ClientMaker(type):
     """ Метакласс для проверки корректности клиентов
     В основе метода библиотека dis - анализ кода с помощью его дизассемблирования
     (разбор кода на составляющие: в нашем случае - на атрибуты и методы класса) """
+
     def __init__(cls, clsname, bases, clsdict):
         prohibited_methods = ('accept', 'listen')  # Запрещённые к использованию методы.
         methods = []

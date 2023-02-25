@@ -1,11 +1,11 @@
+import sys
 import inspect
 import logging
-import sys
+from functools import wraps
 
 sys.path.append('../')
 import logs.config_client_log
 import logs.config_server_log
-from functools import wraps
 
 
 class Log:

@@ -18,10 +18,8 @@ while True:
                                           creationflags=subprocess.CREATE_NEW_CONSOLE))
         # Запускаем клиентов.
         for i in range(clients_count):
-            PROCESSES.append(
-                subprocess.Popen(f'python client.py -n test{i + 1}',
-                                 creationflags=subprocess.CREATE_NEW_CONSOLE))
+            PROCESSES.append(subprocess.Popen(f'python client.py -n test{i + 1}',
+                                              creationflags=subprocess.CREATE_NEW_CONSOLE))
     elif ACTION == 'x':
         while PROCESSES:
             PROCESSES.pop().kill()
-

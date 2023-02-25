@@ -1,9 +1,11 @@
-import logging
+from logs.config_server_log import create_server_logger
 
-SERVER_LOGGER = logging.getLogger('server')
+SERVER_LOGGER = create_server_logger()
+
 
 class Port:
     """ Дескриптор для описания порта """
+
     def __set__(self, instance, value):
         if not 1023 < value < 65536:
             SERVER_LOGGER.critical(
@@ -13,4 +15,3 @@ class Port:
 
     def __set_name__(self, owner, name):
         self.name = name
-
