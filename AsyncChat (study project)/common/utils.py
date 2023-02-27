@@ -1,8 +1,8 @@
 import json
 import socket
 from common.settings import MAX_PACKAGE_LENGTH, ENCODING
-from exceptions import NonDictInputError, IncorrectDataRecivedError
-from decorators import Log
+from common.exceptions import NonDictInputError, IncorrectDataRecivedError
+from common.decorators import Log
 
 
 @Log()
@@ -16,7 +16,7 @@ def get_message(client: socket.socket) -> dict:
         response = json.loads(json_response)
         if isinstance(response, dict):
             return response
-        raise NonDictInputError
+        raise IncorrectDataRecivedError
     raise IncorrectDataRecivedError
 
 

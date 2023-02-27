@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, Table, Column, \
 # print("Версия SQLAlchemy:", sqlalchemy.__version__)  # version: 2.0.4
 
 class ServerStorage:
-    """ Класс для серверной базы данных. """
+    """ Класс серверной базы данных. """
 
     class AllUsers:
         """ Класс для отображения таблицы всех пользователей

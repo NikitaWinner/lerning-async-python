@@ -2,6 +2,8 @@ from datetime import datetime
 from sqlalchemy.orm import sessionmaker, registry
 from sqlalchemy import create_engine, Table, Column, \
     Integer, String, Text, DateTime
+import sys
+sys.path.append('..')
 
 
 class ClientDatabase:
@@ -18,15 +20,15 @@ class ClientDatabase:
     class MessageHistory:
         """  Класс - отображение таблицы истории сообщений. """
 
-        def __init__(self, from_user: str, to_user: str, message: str):
+        def __init__(self, contact: str, direction: str, message: str):
             """ Конструктор класса MessageHistory.
-            :param from_user: Имя пользователя - от кого сообщение.
-            :param to_user: Имя пользователя - кому сообщение.
+            :param contact: Имя пользователя - от кого сообщение.
+            :param direction: Имя пользователя - кому сообщение.
             :param message: Текст сообщения.
             """
             self.id = None  # primary_key
-            self.from_user = from_user
-            self.to_user = to_user
+            self.contact = contact
+            self.direction = direction
             self.message = message
             self.date = datetime.now()
 
@@ -40,7 +42,7 @@ class ClientDatabase:
             self.id = None  # primary_key
             self.username = contact
 
-    def __init__(self, client_name):
+    def __init__(self, client_name: str):
         """ Конструктор класса ClientDatabase.
         Создаёт движок базы данных, все таблицы,
         связывает их классы в ORM с таблицей sqlite
@@ -61,8 +63,8 @@ class ClientDatabase:
         # Создаём таблицу истории сообщений
         history = Table('Message_history', self.mapper_registry.metadata,
                         Column('id', Integer, primary_key=True),
-                        Column('from_user', String),
-                        Column('to_user', String),
+                        Column('contact', String),
+                        Column('direction', String),
                         Column('message', Text),
                         Column('date', DateTime)
                         )
@@ -95,7 +97,6 @@ class ClientDatabase:
         self.session.query(self.Contacts).delete()
         self.session.commit()
 
-    # Функция добавления контактов
     def add_contact(self, contact: str) -> None:
         """ Метод добавления контактов в таблицу Contacts.
         :param contact: Имя контакта, которого нужно добавить.
@@ -124,13 +125,13 @@ class ClientDatabase:
             self.session.add(user_row)
         self.session.commit()
 
-    def save_message(self, from_user: str, to_user: str, message: str) -> None:
+    def save_message(self, contact: str, direction: str, message: str) -> None:
         """ Метод сохранения сообщений в таблицу Message_history.
-        :param from_user: Имя пользователя - от кого сообщение.
-        :param to_user: Имя пользователя - кому сообщение.
+        :param contact: Имя пользователя - от кого сообщение.
+        :param direction: Отправленное или полученное.
         :param message: Текст сообщения.
         """
-        message_row = self.MessageHistory(from_user, to_user, message)
+        message_row = self.MessageHistory(contact, direction, message)
         self.session.add(message_row)
         self.session.commit()
 
@@ -158,7 +159,6 @@ class ClientDatabase:
         else:
             return False
 
-    # Функция проверяет наличие пользователя в таблице Контактов
     def check_contact(self, contact: str) -> bool:
         """ Метод проверяет наличие пользователя в таблице Contacts.
         :param contact: Имя контакта, которое нужно проверить.
@@ -169,19 +169,14 @@ class ClientDatabase:
         else:
             return False
 
-    def get_history(self, from_who=None, to_who=None) -> list[tuple]:
+    def get_history(self, contact: str) -> list[tuple]:
         """ Метод возвращает историю переписки.
-        :param from_who: Получить историю входящих сообщений.
-        :param to_who: Получить историю исходящих сообщений.
+        :param contact: Имя контакта с кем нужно получить историю переписки.
         :return: Список кортежей из имён отправителей, получателей,
                  текста сообщений и дат отправки.
         """
-        query = self.session.query(self.MessageHistory)
-        if from_who:
-            query = query.filter_by(from_user=from_who)
-        if to_who:
-            query = query.filter_by(to_user=to_who)
-        history_message = [(history_row.from_user, history_row.to_user,
+        query = self.session.query(self.MessageHistory).filter_by(contact=contact)
+        history_message = [(history_row.contact, history_row.direction,
                             history_row.message, history_row.date)
                            for history_row in query.all()]
         return history_message
@@ -203,7 +198,10 @@ if __name__ == '__main__':
     print(test_db.check_user('test1'))
     print(test_db.check_user('test10'))
     print(test_db.get_history('test2'))
-    print(test_db.get_history(to_who='test2'))
+    print(test_db.get_history(contact='test2'))
+    print(sorted(test_db.get_history('test2'), key=lambda item: item[3]))
+    test_db.del_contact('test4')
+    print(test_db.get_contacts())
     print(test_db.get_history('test3'))
     test_db.del_contact('test4')
     print(test_db.get_contacts())

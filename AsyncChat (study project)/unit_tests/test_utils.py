@@ -11,7 +11,7 @@ from socket import socket, AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import *
 from common.utils import get_message, send_message
-from exceptions import NonDictInputError
+from common.exceptions import NonDictInputError
 
 
 class TestUtils(unittest.TestCase):

@@ -8,7 +8,7 @@ import socket
 import argparse
 import threading
 import configparser
-from decorators import Log
+from common.decorators import Log
 from descriptors import Port
 from PyQt5.QtCore import QTimer
 from metaclasses import ServerMaker
@@ -16,13 +16,13 @@ from server_database import ServerStorage
 from common.utils import get_message, send_message
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from logs.config_server_log import create_server_logger
-from exceptions import IncorrectDataRecivedError, NonDictInputError
+from common.exceptions import IncorrectDataRecivedError, NonDictInputError
 from server_gui import MainWindow, gui_create_model, HistoryWindow, \
     create_stat_model, ConfigWindow
 from common.settings import ACTION, PRESENCE, TIME, USER, ACCOUNT_NAME, \
     SENDER, GET_CONTACTS, MAX_CONNECTIONS, ERROR, MESSAGE_TEXT, MESSAGE, \
     RESPONSE_200, RESPONSE_202, RESPONSE_400, DESTINATION, USERS_REQUEST, \
-    EXIT, LIST_INFO, ADD_CONTACT, REMOVE_CONTACT
+    EXIT, LIST_INFO, ADD_CONTACT, REMOVE_CONTACT, DEFAULT_PORT
 
 # from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
@@ -40,30 +40,34 @@ class Server(threading.Thread, metaclass=ServerMaker):
     """ Основной класс сервера """
 
     def __init__(self, listen_address: str, listen_port: int, database: ServerStorage):
-        self.addr = listen_address  # IP-адрес.
-        self.port = listen_port  # Порты для прослушивания.
-        self.database = database  # База данных сервера.
+        """ Коструктор класса Server.
+        :param listen_address: IP-адрес для прослушивания.
+        :param listen_port: Порты для прослушивания.
+        :param database: Объект базы данных сервера. """
+        self.addr = listen_address
+        self.port = listen_port
+        self.database = database
         self.clients = list()  # Для подключенных клиентских сокетов.
         self.message_queue = list()  # Для очереди сообщений.
         self.registered_names = dict()  # Словарь, для имён пользователей и соответствующих им сокетов.
-        super().__init__()  # Конструктор предка
+        self.sock = None  # Сокет сервера.
+        super().__init__()
 
     def init_socket(self):
-        """ Метод для создания и настройки сокета сервера"""
+        """ Метод для создания и настройки сокета сервера. """
         SERVER_LOGGER.info(
             f'Запущен сервер, порт для подключений: {self.port}, '
             f'адрес с которого принимаются подключения: {self.addr}. '
             f'Если адрес не указан, принимаются соединения с любых адресов.')
         # Готовлю и слушаю сокет.
-        transport = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        transport.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        transport.bind((self.addr, self.port))
-        transport.settimeout(0.5)
-        self.sock = transport
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind((self.addr, self.port))
+        self.sock.settimeout(0.5)
         self.sock.listen(MAX_CONNECTIONS)
 
     def run(self):
-        """ Основной цикл программы сервера."""
+        """ Основной цикл программы сервера. """
         # Инициализация cокета.
         self.init_socket()
         while True:
@@ -81,8 +85,8 @@ class Server(threading.Thread, metaclass=ServerMaker):
             err_lst = []  # Для исключений.
             try:
                 if self.clients:  # Проверка на наличие ждущих клиентов.
-                    recv_data_lst, send_data_lst, err_lst = select.select(
-                        self.clients, self.clients, [], 0)
+                    recv_data_lst, send_data_lst, err_lst = select.select(self.clients,
+                                                                          self.clients, [], 0)
             except OSError as err:
                 SERVER_LOGGER.error(f'Ошибка работы с сокетами: {err}')
             # Принимаю сообщения и если там есть сообщения,
@@ -94,16 +98,18 @@ class Server(threading.Thread, metaclass=ServerMaker):
                         SERVER_LOGGER.debug(f'Получено сообщение от клиента: {message_from_client}')
                         self.process_client_message(message_from_client, client_with_message)
                     except OSError:
-                        # Ищем клиента в словаре клиентов и удаляем его из него
-                        # и базы подключённых
-                        SERVER_LOGGER.info(
-                            f'Клиент {client_with_message.getpeername()} отключился от сервера.')
+                        # Ищем клиента в словаре клиентов и
+                        # удаляем его из него и базы подключённых.
+                        SERVER_LOGGER.info(f'Клиент {client_with_message.getpeername()} '
+                                           f'отключился от сервера.')
                         for name in self.registered_names:
                             if self.registered_names[name] == client_with_message:
                                 self.database.user_logout(name)
                                 del self.registered_names[name]
                                 break
                         self.clients.remove(client_with_message)
+                        with conflag_lock:
+                            new_connection = True
                     except json.JSONDecodeError:
                         SERVER_LOGGER.error(f'Не удалось декодировать JSON строку, полученную от '
                                             f'клиента {client_with_message.getpeername()}. '
@@ -122,22 +128,23 @@ class Server(threading.Thread, metaclass=ServerMaker):
             for message in self.message_queue:
                 try:
                     self.process_message(message, send_data_lst)
-                except (ConnectionAbortedError, ConnectionError,
-                        ConnectionResetError, ConnectionRefusedError) as err:
+                except (ConnectionAbortedError, ConnectionResetError,
+                        ConnectionError, ConnectionRefusedError) as err:
                     SERVER_LOGGER.info(f'Связь с клиентом с именем '
                                        f'{message[DESTINATION]} была потеряна, '
                                        f' ошибка {err}')
                     self.clients.remove(self.registered_names[message[DESTINATION]])
                     self.database.user_logout(message[DESTINATION])
                     del self.registered_names[message[DESTINATION]]
+                    with conflag_lock:
+                        new_connection = True
             self.message_queue.clear()
 
     def process_message(self, message: dict, listen_socks: list) -> None:
         """ Функция адресной отправки сообщения определённому клиенту. Принимает словарь сообщение,
         список зарегистрированых пользователей и слушающие сокеты. Ничего не возвращает.
         :param message: Сообщение готовое к отправке в виде словаря.
-        :param listen_socks: Список файловых дескрипторов, готовых к выводу.
-        """
+        :param listen_socks: Список файловых дескрипторов, готовых к выводу.  """
         if message[DESTINATION] in self.registered_names \
                 and self.registered_names[message[DESTINATION]] in listen_socks:
             try:
@@ -159,8 +166,7 @@ class Server(threading.Thread, metaclass=ServerMaker):
         """ Обработчик сообщений от клиентов, принимает словарь - сообщение от клиента,
         проверяет корректность, отправляет клиенту словарь-ответ, если необходимо.
         :param message: Сообщение в виде словаря принятое от клиента по протоколу JIM.
-        :param client: Файловый дескриптор, готовый к вводу (готовый принять сообщение от сервера).
-        """
+        :param client: Файловый дескриптор, готовый к вводу (готовый принять сообщение от сервера). """
         global new_connection
         SERVER_LOGGER.debug(f'Разбор сообщения от клиента : {message}')
         # Принимаем и отвечаем на собщение о присутствии.
@@ -194,9 +200,14 @@ class Server(threading.Thread, metaclass=ServerMaker):
                 and SENDER in message \
                 and MESSAGE_TEXT in message \
                 and self.registered_names[message[SENDER]] == client:
-            self.message_queue.append(message)
-            self.database.process_message(message[SENDER],
-                                          message[DESTINATION])
+            if message[DESTINATION] in self.registered_names:
+                self.message_queue.append(message)
+                self.database.process_message(message[SENDER], message[DESTINATION])
+                send_message(client, RESPONSE_200)
+            else:
+                response = RESPONSE_400
+                response[ERROR] = 'Пользователь не зарегистрирован на сервере.'
+                send_message(client, response)
         # Клиент ожидает выхода.
         elif ACTION in message \
                 and message[ACTION] == EXIT \
@@ -257,7 +268,6 @@ class Server(threading.Thread, metaclass=ServerMaker):
 
 def print_help() -> None:
     """ Функция выводящая справку по использованию серверной части """
-
     print('Поддерживаемые комманды:')
     print('users - список известных пользователей')
     print('connected - список подключённых пользователей')
@@ -269,8 +279,7 @@ def print_help() -> None:
 @Log(SERVER_LOGGER)
 def get_arg_commandline(default_port: str, default_address: str) -> tuple:
     """ Создаём парсер аргументов коммандной строки
-    и читаем параметры, возвращаем 2 параметра.
-    """
+    и читаем параметры, возвращаем 2 параметра. """
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', default=default_port, type=int, nargs='?')
     parser.add_argument('-a', default=default_address, nargs='?')
@@ -281,22 +290,40 @@ def get_arg_commandline(default_port: str, default_address: str) -> tuple:
     return listen_address, listen_port
 
 
-def main():
-    # Загрузка файла конфигурации сервера
+def config_load() -> configparser.ConfigParser :
+    """ Функция загрузки файла конфигурации.
+    :return: Настроенный экземпляр класса ConfigParser
+             с данными конфигурации. """
     config = configparser.ConfigParser()
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    config.read(f"{dir_path}/{'server_config.ini'}")
+    config.read(f"{dir_path}/{'server.ini'}")
+    # Если конфиг файл загружен правильно, запускаемся, иначе конфиг по умолчанию.
+    if 'SETTINGS' in config:
+        return config
+    else:
+        config.add_section('SETTINGS')
+        config.set('SETTINGS', 'Default_port', str(DEFAULT_PORT))
+        config.set('SETTINGS', 'Listen_Address', '')
+        config.set('SETTINGS', 'Database_path', '')
+        config.set('SETTINGS', 'Database_file', 'server_database.db3')
+        return config
 
-    # Инициализация базы данных
-    path_to_database = os.path.join(config['SETTINGS']['Database_path'],
-                                    config['SETTINGS']['Database_file'])
-    database = ServerStorage(path_to_database)
+
+def main():
+    # Загрузка файла конфигурации сервера.
+    config = config_load()
 
     # Загрузка параметров командной строки, если нет параметров,
     # то задаются значения по умоланию из файла конфигурации.
     listen_address, listen_port = get_arg_commandline(config['SETTINGS']['Default_port'],
                                                       config['SETTINGS']['Listen_Address'])
-    # Создание экземпляра класса - сервера.
+
+    # Инициализация базы данных.
+    path_to_database = os.path.join(config['SETTINGS']['Database_path'],
+                                    config['SETTINGS']['Database_file'])
+    database = ServerStorage(path_to_database)
+
+    # Создание экземпляра класса - сервера и его запуск.
     server = Server(listen_address, listen_port, database)
     server.daemon = True
     server.start()
@@ -313,8 +340,7 @@ def main():
 
     def list_update() -> None:
         """ Функция, обновляющая список подключённых,
-        проверяет флаг подключения, и если надо, обновляет список.
-        """
+        проверяет флаг подключения, и если надо, обновляет список. """
         global new_connection
         if new_connection:
             main_window.active_clients_table.setModel(
@@ -361,16 +387,11 @@ def main():
             config['SETTINGS']['Listen_Address'] = config_window.ip.text()
             if 1023 < port < 65536:
                 config['SETTINGS']['Default_port'] = str(port)
-                print(port)
                 with open('server.ini', 'w') as conf:
                     config.write(conf)
-                    message.information(
-                        config_window, 'OK', 'Настройки успешно сохранены!')
+                    message.information(config_window, 'OK', 'Настройки успешно сохранены!')
             else:
-                message.warning(
-                    config_window,
-                    'Ошибка',
-                    'Порт должен быть от 1024 до 65536')
+                message.warning(config_window, 'Ошибка', 'Порт должен быть от 1024 до 65536')
 
     # Таймер, обновляющий список клиентов 1 раз в секунду
     timer = QTimer()

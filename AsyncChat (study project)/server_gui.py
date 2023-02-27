@@ -9,10 +9,9 @@ from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QApplication, \
 def gui_create_model(database: ServerStorage) -> QStandardItemModel:
     """ Создание таблицы QModel, для отображения в окне программы.
     :param database: База данных сервера.
-    :return: Список списков из данных всех активных пользователей.
-    """
+    :return: Список списков из данных всех активных пользователей. """
     active_users_list = database.get_active_users_list()
-    # Объект модели данных:
+    # Создаём объект модели данных.
     list_table = QStandardItemModel()
     list_table.setHorizontalHeaderLabels(
         ['Имя клиента         ', 'IP-адрес         ', 'Порт       ', 'Время подключения       '])
@@ -24,20 +23,17 @@ def gui_create_model(database: ServerStorage) -> QStandardItemModel:
         ip.setEditable(False)
         port = QStandardItem(str(port))
         port.setEditable(False)
-        time = QStandardItem(str(time.replace(microsecond=0)))
+        time = QStandardItem(str(time.replace(microsecond=0).strftime("%H:%M | %d %B %Yг")))
         time.setEditable(False)
         list_table.appendRow([user, ip, port, time])
     return list_table
 
 
-# GUI - Функция реализующая заполнение таблицы историей сообщений.
 def create_stat_model(database: ServerStorage) -> QStandardItemModel:
     """GUI - Функция реализующая заполнение
     таблицы историей сообщений.
     :param database: База данных сервера.
-    :return: Список списков полученных и переданных сообщений пользователей.
-    """
-
+    :return: Список списков полученных и переданных сообщений пользователей. """
     # Список записей из базы
     hist_list = database.get_message_history()
 
@@ -49,7 +45,7 @@ def create_stat_model(database: ServerStorage) -> QStandardItemModel:
         username, last_seen, sent, recvd = row
         username = QStandardItem(username)
         username.setEditable(False)
-        last_seen = QStandardItem(str(last_seen.replace(microsecond=0)))
+        last_seen = QStandardItem(str(last_seen.replace(microsecond=0).strftime("%H:%M %d %B %Yг")))
         last_seen.setEditable(False)
         sent = QStandardItem(str(sent))
         sent.setEditable(False)
@@ -60,10 +56,8 @@ def create_stat_model(database: ServerStorage) -> QStandardItemModel:
     return list_table
 
 
-# Класс основного окна
-
 class MainWindow(QMainWindow):
-    """ Класс основного окна. """
+    """ GUI - класс основного окна. """
 
     def __init__(self):
         super().__init__()
@@ -115,7 +109,7 @@ class MainWindow(QMainWindow):
 
 
 class HistoryWindow(QDialog):
-    """ Класс окна с историей пользователей."""
+    """ GUI - класс окна с историей пользователей."""
 
     def __init__(self):
         super().__init__()
@@ -144,7 +138,7 @@ class HistoryWindow(QDialog):
 
 
 class ConfigWindow(QDialog):
-    """ Класс окна настроек сервера. """
+    """ GUI - класс окна настроек сервера. """
 
     def __init__(self):
         super().__init__()
@@ -172,8 +166,8 @@ class ConfigWindow(QDialog):
         self.db_path_select = QPushButton('Обзор...', self)
         self.db_path_select.move(275, 28)
 
-        # Функция обработчик открытия окна выбора папки
-        def open_file_dialog():
+        def open_file_dialog() -> None:
+            """ Метод-обработчик открытия окна выбора папки. """
             global dialog
             dialog = QFileDialog(self)
             path = dialog.getExistingDirectory()

@@ -7,7 +7,7 @@ import unittest
 sys.path.append(os.path.join(os.getcwd(), '..'))
 from common.settings import RESPONSE, ERROR, USER, ACCOUNT_NAME, TIME, ACTION, PRESENCE
 from client import create_presence, process_ans
-from exceptions import ReqFieldMissingError, ServerError
+from common.exceptions import ReqFieldMissingError, ServerError
 
 
 class TestClass(unittest.TestCase):

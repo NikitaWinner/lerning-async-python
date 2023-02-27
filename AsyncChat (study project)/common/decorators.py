@@ -3,7 +3,7 @@ import inspect
 import logging
 from functools import wraps
 
-sys.path.append('../')
+sys.path.append('../../')
 import logs.config_client_log
 import logs.config_server_log
 
