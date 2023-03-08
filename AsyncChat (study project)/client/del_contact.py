@@ -9,7 +9,9 @@ logger = create_client_logger()
 
 
 class DelContactDialog(QDialog):
-    """ GUI - класс окно выбора контакта для удаления. """
+    """ GUI - класс окно выбора контакта для удаления.
+    Предлагает текущий список контактов,
+    не имеет обработчиков для действий."""
 
     def __init__(self, database: ClientDatabase):
         super().__init__()

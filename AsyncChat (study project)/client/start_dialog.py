@@ -3,32 +3,44 @@ from PyQt5.QtCore import QEvent
 
 
 class UserNameDialog(QDialog):
-    """ GUI - класс стартового окна с выбором имени пользователя """
+    """ GUI - класс стартового окна с запросом логина и пароля
+    пользователя."""
     def __init__(self):
         super().__init__()
         self.ok_pressed = False
         self.messages = QMessageBox()
-        self.setWindowTitle('Привет!')
-        self.setFixedSize(260, 140)
         self.initUI()
         self.connects()
         self.show()
 
     def initUI(self):
         """ Инициализация и настройка виджетов окна """
+
+        self.setWindowTitle('Вход')
+        self.setFixedSize(260, 140)
+
         self.label = QLabel('Введите имя пользователя:', self)
+        self.label.move(10, 10)
         self.label.setFixedSize(200, 20)
-        self.label.move(25, 10)
 
         self.client_name = QLineEdit(self)
-        self.client_name.setFixedSize(200, 30)
-        self.client_name.move(25, 40)
+        self.client_name.setFixedSize(154, 25)
+        self.client_name.move(10, 30)
 
         self.btn_ok = QPushButton('Начать', self)
-        self.btn_ok.move(10, 85)
+        self.btn_ok.move(10, 105)
 
         self.btn_cancel = QPushButton('Выход', self)
-        self.btn_cancel.move(130, 85)
+        self.btn_cancel.move(130, 105)
+
+        self.label_passwd = QLabel('Введите пароль:', self)
+        self.label_passwd.move(10, 55)
+        self.label_passwd.setFixedSize(150, 20)
+
+        self.client_passwd = QLineEdit(self)
+        self.client_passwd.setFixedSize(154, 25)
+        self.client_passwd.move(10, 75)
+        self.client_passwd.setEchoMode(QLineEdit.Password)
 
     def connects(self):
         """ Метод подключает обработчики сигналов всех кнопок """
@@ -36,13 +48,13 @@ class UserNameDialog(QDialog):
         self.btn_cancel.clicked.connect(qApp.exit)
 
     def click(self):
-        """ Обработчик кнопки ОК, если поле ввода
-         не пустое, ставим флаг и завершаем приложение."""
-        if self.client_name.text():
+        """ Обработчик кнопки ОК, если поле ввода имени и пароля
+         не пустое, ставим флаг True и завершаем приложение."""
+        if self.client_name.text() and self.client_passwd.text():
             self.ok_pressed = True
             qApp.exit()
         else:
-            self.messages.information(self, 'Упс!', 'Введите свой логин, что бы продолжить.')
+            self.messages.information(self, 'Уведомление!', 'Введите свой логин и  пароль, что бы продолжить.')
 
 
 

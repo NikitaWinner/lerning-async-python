@@ -11,12 +11,26 @@ logger = create_client_logger()
 
 
 class AddContactDialog(QDialog):
-    """ GUI - класс окна выбора контакта для добавления """
+    """ GUI - класс окна выбора контакта для добавления.
+    Предлагает пользователю список возможных контактов и
+    добавляет выбранный в контакты."""
     def __init__(self, transport: ClientTransport, database: ClientDatabase):
+        """
+        :param transport: Объект клиентской транспортной системы обмена сообщениями.
+        :param database: Объект базы данных клиента.
+        """
         super().__init__()
         self.transport = transport
         self.database = database
 
+        self.initUI()
+        self.connects()
+
+        # Заполняем список возможных контактов
+        self.possible_contacts_update()
+
+    def initUI(self):
+        """ Создание и настройка виджетов окна. """
         self.setFixedSize(350, 140)
         self.setWindowTitle('Выберите контакт для добавления:')
         # Удаляем диалог, если окно было закрыто преждевременно
@@ -43,16 +57,18 @@ class AddContactDialog(QDialog):
         self.btn_cancel = QPushButton('Отмена', self)
         self.btn_cancel.setFixedSize(100, 30)
         self.btn_cancel.move(230, 70)
-        self.btn_cancel.clicked.connect(self.close)
 
-        # Заполняем список возможных контактов
-        self.possible_contacts_update()
+    def connects(self) -> None:
+        """ Метод подключает слоты для обработки сигналов. """
         # Назначаем действие на кнопку обновить
         self.btn_refresh.clicked.connect(self.update_possible_contacts)
+        # Действие выхода.
+        self.btn_cancel.clicked.connect(self.close)
 
     def possible_contacts_update(self):
-        """ Метод заполняет выпадающий список возможных контактов
-        разницей между всеми пользователями и текущими контактами. """
+        """ Метод заполняет выпадающий список возможных контактов.
+        Создаёт список всех зарегистрированных пользователей
+        за исключением уже добавленных в контакты и самого себя. """
         self.selector.clear()
         # множества всех контактов и контактов клиента
         contacts_list = set(self.database.get_contacts())
@@ -64,7 +80,7 @@ class AddContactDialog(QDialog):
 
     def update_possible_contacts(self):
         """ Метод обновляет таблицу известных пользователей (забирает с сервера),
-            затем обновляет содержимое предполагаемых контактов. """
+            затем обновляет содержимое окна предполагаемых контактов. """
         try:
             self.transport.user_list_update()
         except OSError:
